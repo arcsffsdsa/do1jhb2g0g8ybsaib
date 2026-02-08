@@ -2583,38 +2583,47 @@ Components.Window = (function()
 			Window.TabHolder.CanvasSize = UDim2.new(0, 0, 0, Window.TabHolder.UIListLayout.AbsoluteContentSize.Y)
 		end)
 
-		function Window:Minimize()
-			Window.Minimized = not Window.Minimized
-			
-			if Window.Minimized then
-				Window.OldSize = Window.Size
-				SizeMotor:setGoal({
-					X = Spring(Window.Size.X.Offset, { frequency = 6 }),
-					Y = Spring(40, { frequency = 6 }),
-				})
-				Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 40)
-				
-				Window.TabFrame.Visible = false
-				Window.TabDisplay.Visible = false
-				Window.ContainerCanvas.Visible = false
-				Window.ResizeStartFrame.Visible = false
-				Window.BottomDragHandle.Visible = false
-				Window.TitleBar.Line.Visible = false
-			else
-				SizeMotor:setGoal({
-					X = Spring(Window.OldSize.X.Offset, { frequency = 6 }),
-					Y = Spring(Window.OldSize.Y.Offset, { frequency = 6 }),
-				})
-				Window.Size = Window.OldSize
-				
-				Window.TabFrame.Visible = true
-				Window.TabDisplay.Visible = true
-				Window.ContainerCanvas.Visible = true
-				Window.ResizeStartFrame.Visible = true
-				Window.BottomDragHandle.Visible = true
-				Window.TitleBar.Line.Visible = true
-			end
+function Window:Minimize()
+	if Window.Maximized then
+		Window.Maximize(false)
+		task.wait(0.1)
+	end
+	
+	Window.Minimized = not Window.Minimized
+	
+	if Window.Minimized then
+		if not Window.PreMinimizeSize then
+			Window.PreMinimizeSize = Window.Size
 		end
+		SizeMotor:setGoal({
+			X = Spring(Window.Size.X.Offset, { frequency = 6 }),
+			Y = Spring(40, { frequency = 6 }),
+		})
+		Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 40)
+		
+		Window.TabFrame.Visible = false
+		Window.TabDisplay.Visible = false
+		Window.ContainerCanvas.Visible = false
+		Window.ResizeStartFrame.Visible = false
+		Window.BottomDragHandle.Visible = false
+		Window.TitleBar.Line.Visible = false
+	else
+		local restoreSize = Window.PreMinimizeSize or UDim2.fromOffset(580, 460)
+		SizeMotor:setGoal({
+			X = Spring(restoreSize.X.Offset, { frequency = 6 }),
+			Y = Spring(restoreSize.Y.Offset, { frequency = 6 }),
+		})
+		Window.Size = restoreSize
+		Window.PreMinimizeSize = nil
+		
+		Window.TabFrame.Visible = true
+		Window.TabDisplay.Visible = true
+		Window.ContainerCanvas.Visible = true
+		Window.ResizeStartFrame.Visible = true
+		Window.BottomDragHandle.Visible = true
+		Window.TitleBar.Line.Visible = true
+	end
+end
 
 		function Window:Destroy()
 			if Library.UseAcrylic then
