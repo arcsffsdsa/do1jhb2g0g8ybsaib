@@ -2208,9 +2208,6 @@ Components.TitleBar = (function()
 				},
 			})
 		end)
-		TitleBar.MaxButton = BarButton(Components.Assets.Max, UDim2.new(1, -40, 0, 4), TitleBar.Frame, function()
-			Config.Window.Maximize(not Config.Window.Maximized)
-		end)
 		TitleBar.MinButton = BarButton(Components.Assets.Min, UDim2.new(1, -80, 0, 4), TitleBar.Frame, function()
 			Library.Window:Minimize()
 		end)
@@ -2413,29 +2410,6 @@ Components.Window = (function()
 
 		local OldSizeX
 		local OldSizeY
-		Window.Maximize = function(Value, NoPos, Instant)
-			Window.Maximized = Value
-			Window.TitleBar.MaxButton.Frame.Icon.Image = Value and Components.Assets.Restore or Components.Assets.Max
-
-			if Value then
-				OldSizeX = Window.Size.X.Offset
-				OldSizeY = Window.Size.Y.Offset
-			end
-			local SizeX = Value and Camera.ViewportSize.X or OldSizeX
-			local SizeY = Value and Camera.ViewportSize.Y or OldSizeY
-			SizeMotor:setGoal({
-				X = Flipper[Instant and "Instant" or "Spring"].new(SizeX, { frequency = 6 }),
-				Y = Flipper[Instant and "Instant" or "Spring"].new(SizeY, { frequency = 6 }),
-			})
-			Window.Size = UDim2.fromOffset(SizeX, SizeY)
-
-			if not NoPos then
-				PosMotor:setGoal({
-					X = Spring(Value and 0 or Window.Position.X.Offset, { frequency = 6 }),
-					Y = Spring(Value and 0 or Window.Position.Y.Offset, { frequency = 6 }),
-				})
-			end
-		end
 
 		Creator.AddSignal(Window.TitleBar.Frame.InputBegan, function(Input)
 			if
@@ -2446,12 +2420,6 @@ Components.Window = (function()
 				MousePos = Vector2.new(Mouse.X, Mouse.Y)
 				StartPos = Window.Root.Position
 
-				if Window.Maximized then
-					StartPos = UDim2.fromOffset(
-						Mouse.X - (Mouse.X * ((OldSizeX - 100) / Window.Root.AbsoluteSize.X)),
-						Mouse.Y - (Mouse.Y * (OldSizeY / Window.Root.AbsoluteSize.Y))
-					)
-				end
 			end
 		end)
 		
@@ -2476,12 +2444,6 @@ Components.Window = (function()
 				MousePos = Vector2.new(Mouse.X, Mouse.Y)
 				StartPos = Window.Root.Position
 
-				if Window.Maximized then
-					StartPos = UDim2.fromOffset(
-						Mouse.X - (Mouse.X * ((OldSizeX - 100) / Window.Root.AbsoluteSize.X)),
-						Mouse.Y - (Mouse.Y * (OldSizeY / Window.Root.AbsoluteSize.Y))
-					)
-				end
 			end
 		end)
 
@@ -2549,9 +2511,6 @@ Components.Window = (function()
 					Y = Instant(Window.Position.Y.Offset),
 				})
 
-				if Window.Maximized then
-					Window.Maximize(false, true, true)
-				end
 			end
 
 			if
@@ -2583,47 +2542,38 @@ Components.Window = (function()
 			Window.TabHolder.CanvasSize = UDim2.new(0, 0, 0, Window.TabHolder.UIListLayout.AbsoluteContentSize.Y)
 		end)
 
-function Window:Minimize()
-	if Window.Maximized then
-		Window.Maximize(false)
-		task.wait(0.1)
-	end
-	
-	Window.Minimized = not Window.Minimized
-	
-	if Window.Minimized then
-		if not Window.PreMinimizeSize then
-			Window.PreMinimizeSize = Window.Size
+		function Window:Minimize()
+			Window.Minimized = not Window.Minimized
+			
+			if Window.Minimized then
+				Window.OldSize = Window.Size
+				SizeMotor:setGoal({
+					X = Spring(Window.Size.X.Offset, { frequency = 6 }),
+					Y = Spring(40, { frequency = 6 }),
+				})
+				Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 40)
+				
+				Window.TabFrame.Visible = false
+				Window.TabDisplay.Visible = false
+				Window.ContainerCanvas.Visible = false
+				Window.ResizeStartFrame.Visible = false
+				Window.BottomDragHandle.Visible = false
+				Window.TitleBar.Line.Visible = false
+			else
+				SizeMotor:setGoal({
+					X = Spring(Window.OldSize.X.Offset, { frequency = 6 }),
+					Y = Spring(Window.OldSize.Y.Offset, { frequency = 6 }),
+				})
+				Window.Size = Window.OldSize
+				
+				Window.TabFrame.Visible = true
+				Window.TabDisplay.Visible = true
+				Window.ContainerCanvas.Visible = true
+				Window.ResizeStartFrame.Visible = true
+				Window.BottomDragHandle.Visible = true
+				Window.TitleBar.Line.Visible = true
+			end
 		end
-		SizeMotor:setGoal({
-			X = Spring(Window.Size.X.Offset, { frequency = 6 }),
-			Y = Spring(40, { frequency = 6 }),
-		})
-		Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 40)
-		
-		Window.TabFrame.Visible = false
-		Window.TabDisplay.Visible = false
-		Window.ContainerCanvas.Visible = false
-		Window.ResizeStartFrame.Visible = false
-		Window.BottomDragHandle.Visible = false
-		Window.TitleBar.Line.Visible = false
-	else
-		local restoreSize = Window.PreMinimizeSize or UDim2.fromOffset(580, 460)
-		SizeMotor:setGoal({
-			X = Spring(restoreSize.X.Offset, { frequency = 6 }),
-			Y = Spring(restoreSize.Y.Offset, { frequency = 6 }),
-		})
-		Window.Size = restoreSize
-		Window.PreMinimizeSize = nil
-		
-		Window.TabFrame.Visible = true
-		Window.TabDisplay.Visible = true
-		Window.ContainerCanvas.Visible = true
-		Window.ResizeStartFrame.Visible = true
-		Window.BottomDragHandle.Visible = true
-		Window.TitleBar.Line.Visible = true
-	end
-end
 
 		function Window:Destroy()
 			if Library.UseAcrylic then
